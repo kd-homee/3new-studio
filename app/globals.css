@@ -1,5 +1,6 @@
 /* app/globals.css */
 @import "tailwindcss";
+@plugin "@tailwindcss/typography";
 
 :root {
   --accent: #F4B400;
