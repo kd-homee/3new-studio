@@ -1,36 +1,45 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# 3NEW STUDIO
 
-## Getting Started
+Browser-based utility studio — [studio.3new.eu](https://studio.3new.eu)
 
-First, run the development server:
+## Tools
+
+**Text Tools**
+- Markdown Editor — Monaco editor with live react-markdown preview
+- YAML Config — Validation and tree preview
+- JSON Data — Pretty print, minify, collapsible tree
+- HTML Editor — Sandboxed iframe live preview
+- Password Generator — Web Crypto API with strength meter
+
+**Image Tools**
+- Image Resize — Presets (25–200%), manual size, aspect ratio lock
+- Format Converter — PNG/JPG/WebP conversion with quality control
+
+## Development
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm install
+npm run dev        # http://localhost:3000
+npm test           # Jest tests
+npm run build      # Static export to out/
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Docker
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```bash
+docker compose up --build -d   # http://localhost:3000
+docker compose down
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Deploy to Xserver VPS
 
-## Learn More
+1. SSH into VPS
+2. Install Docker: `curl -fsSL https://get.docker.com | sh`
+3. Clone repo: `git clone https://github.com/3new-srl/3new-studio`
+4. `cd 3new-studio && docker compose up -d`
+5. Configure Nginx reverse proxy for `studio.3new.eu`
+6. SSL: `certbot --nginx -d studio.3new.eu`
 
-To learn more about Next.js, take a look at the following resources:
+## Stack
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Next.js 15 · TypeScript · TailwindCSS · Monaco Editor · Zustand · react-markdown · js-yaml · Web Crypto API
