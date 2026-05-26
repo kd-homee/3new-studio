@@ -9,14 +9,15 @@ import { ToolShell } from './ToolShell'
 import { useAutosave } from '@/hooks/useAutosave'
 import { downloadFile } from '@/lib/export'
 import { useEditorStore } from '@/store/editorStore'
+import { loadFromStorage } from '@/lib/storage'
 import { TOOLS } from '@/types'
 
 const DEFAULT = TOOLS.find((t) => t.id === 'markdown')!.defaultContent
 
 export function MarkdownTool() {
   const fileName = useEditorStore((s) => s.fileName)
-  const { savedValue } = useAutosave('markdown', DEFAULT)
-  const [content, setContent] = useState(savedValue || DEFAULT)
+  const [content, setContent] = useState(() => loadFromStorage<string>('content:markdown') ?? DEFAULT)
+  useAutosave('markdown', content)
 
   const handleCopy = () => navigator.clipboard.writeText(content)
   const handleExport = () => downloadFile(content, `${fileName}.md`, 'text/markdown')

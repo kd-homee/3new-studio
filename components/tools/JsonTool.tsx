@@ -5,14 +5,15 @@ import { ToolShell } from './ToolShell'
 import { useAutosave } from '@/hooks/useAutosave'
 import { downloadFile } from '@/lib/export'
 import { useEditorStore } from '@/store/editorStore'
+import { loadFromStorage } from '@/lib/storage'
 import { TOOLS } from '@/types'
 
 const DEFAULT = TOOLS.find((t) => t.id === 'json')!.defaultContent
 
 export function JsonTool() {
   const fileName = useEditorStore((s) => s.fileName)
-  const { savedValue } = useAutosave('json', DEFAULT)
-  const [content, setContent] = useState(savedValue || DEFAULT)
+  const [content, setContent] = useState(() => loadFromStorage<string>('content:json') ?? DEFAULT)
+  useAutosave('json', content)
   const [minified, setMinified] = useState(false)
 
   const handleCopy = () => {

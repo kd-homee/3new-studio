@@ -6,14 +6,15 @@ import { ToolShell } from './ToolShell'
 import { useAutosave } from '@/hooks/useAutosave'
 import { downloadFile } from '@/lib/export'
 import { useEditorStore } from '@/store/editorStore'
+import { loadFromStorage } from '@/lib/storage'
 import { TOOLS } from '@/types'
 
 const DEFAULT = TOOLS.find((t) => t.id === 'yaml')!.defaultContent
 
 export function YamlTool() {
   const fileName = useEditorStore((s) => s.fileName)
-  const { savedValue } = useAutosave('yaml', DEFAULT)
-  const [content, setContent] = useState(savedValue || DEFAULT)
+  const [content, setContent] = useState(() => loadFromStorage<string>('content:yaml') ?? DEFAULT)
+  useAutosave('yaml', content)
 
   return (
     <ToolShell

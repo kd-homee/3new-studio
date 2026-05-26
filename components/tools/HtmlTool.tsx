@@ -5,14 +5,15 @@ import { ToolShell } from './ToolShell'
 import { useAutosave } from '@/hooks/useAutosave'
 import { downloadFile } from '@/lib/export'
 import { useEditorStore } from '@/store/editorStore'
+import { loadFromStorage } from '@/lib/storage'
 import { TOOLS } from '@/types'
 
 const DEFAULT = TOOLS.find((t) => t.id === 'html')!.defaultContent
 
 export function HtmlTool() {
   const fileName = useEditorStore((s) => s.fileName)
-  const { savedValue } = useAutosave('html', DEFAULT)
-  const [content, setContent] = useState(savedValue || DEFAULT)
+  const [content, setContent] = useState(() => loadFromStorage<string>('content:html') ?? DEFAULT)
+  useAutosave('html', content)
   const [preview, setPreview] = useState(content)
   const debounceRef = useRef<ReturnType<typeof setTimeout>>(undefined)
 
