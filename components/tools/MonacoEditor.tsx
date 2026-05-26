@@ -17,10 +17,6 @@ export function MonacoEditor({ value, language, onChange, className }: MonacoEdi
     onChange(val ?? '')
   }
 
-  const handleMount = (_editor: editor.IStandaloneCodeEditor) => {
-    // editor instance available here if needed
-  }
-
   return (
     <div className={className} style={{ height: '100%' }}>
       <Editor
@@ -28,7 +24,6 @@ export function MonacoEditor({ value, language, onChange, className }: MonacoEdi
         language={language}
         value={value}
         onChange={handleChange}
-        onMount={handleMount}
         theme="vs"
         options={{
           minimap: { enabled: false },

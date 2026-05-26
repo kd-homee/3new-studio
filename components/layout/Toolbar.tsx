@@ -2,6 +2,7 @@
 'use client'
 import { useEditorStore } from '@/store/editorStore'
 import type { Mode } from '@/types'
+import { TOOLS } from '@/types'
 
 interface ToolbarProps {
   onCopy: () => void
@@ -15,7 +16,9 @@ const MODES: { id: Mode; label: string }[] = [
 ]
 
 export function Toolbar({ onCopy, onExport }: ToolbarProps) {
-  const { mode, setMode, fileName, setFileName } = useEditorStore()
+  const { mode, setMode, fileName, setFileName, activeTool } = useEditorStore()
+  const currentTool = TOOLS.find((t) => t.id === activeTool)
+  const ext = currentTool?.defaultExtension ?? 'md'
 
   return (
     <div
@@ -31,7 +34,7 @@ export function Toolbar({ onCopy, onExport }: ToolbarProps) {
           onChange={(e) => setFileName(e.target.value)}
           aria-label="File name"
         />
-        <span className="text-xs" style={{ color: 'var(--text-muted)' }}>.md</span>
+        <span className="text-xs" style={{ color: 'var(--text-muted)' }}>.{ext}</span>
       </div>
 
       {/* Right: actions + mode */}

@@ -1,13 +1,14 @@
 // components/tools/ToolShell.tsx
 'use client'
+import type { ReactNode } from 'react'
 import { useEditorStore } from '@/store/editorStore'
 import { Toolbar } from '@/components/layout/Toolbar'
 
 interface ToolShellProps {
   onCopy: () => void
   onExport: () => void
-  editorPane: React.ReactNode
-  previewPane: React.ReactNode
+  editorPane: ReactNode
+  previewPane: ReactNode
 }
 
 export function ToolShell({
