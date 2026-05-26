@@ -17,7 +17,10 @@ interface EditorState extends PersistedEditorState {
   setFileName: (name: string) => void
 }
 
-const persisted = loadFromStorage<PersistedEditorState>('editor-state')
+const persisted =
+  typeof window !== 'undefined'
+    ? loadFromStorage<PersistedEditorState>('editor-state')
+    : null
 
 export const useEditorStore = create<EditorState>()(
   subscribeWithSelector((set) => ({
