@@ -59,27 +59,32 @@ export async function POST(request: Request) {
     ? `会議タイトル: ${title}\n\n文字起こし:\n${transcript}`
     : `文字起こし:\n${transcript}`
 
-  const jaResponse = await client.messages.create({
-    model: claudeModel,
-    max_tokens: 2048,
-    system: SYSTEM_PROMPT,
-    messages: [{ role: 'user', content: userContent }],
-  })
-
-  const japanese =
-    jaResponse.content[0].type === 'text' ? jaResponse.content[0].text : ''
-
-  let english: string | null = null
-  if (includeEnglish) {
-    const enResponse = await client.messages.create({
+  try {
+    const jaResponse = await client.messages.create({
       model: claudeModel,
       max_tokens: 2048,
-      system: TRANSLATION_PROMPT,
-      messages: [{ role: 'user', content: japanese }],
+      system: SYSTEM_PROMPT,
+      messages: [{ role: 'user', content: userContent }],
     })
-    english =
-      enResponse.content[0].type === 'text' ? enResponse.content[0].text : null
-  }
 
-  return NextResponse.json({ japanese, english })
+    const japanese =
+      jaResponse.content[0].type === 'text' ? jaResponse.content[0].text : ''
+
+    let english: string | null = null
+    if (includeEnglish) {
+      const enResponse = await client.messages.create({
+        model: claudeModel,
+        max_tokens: 2048,
+        system: TRANSLATION_PROMPT,
+        messages: [{ role: 'user', content: japanese }],
+      })
+      english =
+        enResponse.content[0].type === 'text' ? enResponse.content[0].text : null
+    }
+
+    return NextResponse.json({ japanese, english })
+  } catch (err) {
+    console.error('[/api/minutes]', err)
+    return NextResponse.json({ error: 'AI生成に失敗しました' }, { status: 500 })
+  }
 }
