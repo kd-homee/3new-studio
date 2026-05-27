@@ -20,7 +20,10 @@ export function Sidebar() {
       <div className="flex items-center gap-3 px-4 py-4 border-b" style={{ borderColor: 'var(--border)' }}>
         <div
           className="w-9 h-9 rounded-xl overflow-hidden flex-shrink-0"
-          style={{ background: '#e8e8e8' }}
+          style={{
+            background: '#ffffff',
+            boxShadow: '0 1px 3px rgba(0,0,0,0.12), 0 4px 10px rgba(0,0,0,0.14), 0 8px 20px rgba(0,0,0,0.08)',
+          }}
         >
           <Image src="/logo/robot-bird.png" alt="3NEW logo" width={36} height={36} className="w-full h-full object-cover" />
         </div>
