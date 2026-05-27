@@ -6,15 +6,18 @@ export type ToolId =
   | 'password'
   | 'image-resize'
   | 'format-converter'
+  | 'minutes'
 
 export type Mode = 'edit' | 'split' | 'preview'
 
 export interface ToolConfig {
   id: ToolId
   label: string
-  group: 'text' | 'image'
+  group: 'text' | 'image' | 'ai'
   defaultExtension: string
   defaultContent: string
+  requiresAuth?: boolean
+  requiredRole?: 'member' | 'pro'
 }
 
 export const TOOLS: ToolConfig[] = [
@@ -67,5 +70,14 @@ export const TOOLS: ToolConfig[] = [
     group: 'image',
     defaultExtension: 'png',
     defaultContent: '',
+  },
+  {
+    id: 'minutes',
+    label: '議事録生成',
+    group: 'ai',
+    defaultExtension: 'md',
+    defaultContent: '',
+    requiresAuth: true,
+    requiredRole: 'member',
   },
 ]
