@@ -1,15 +1,36 @@
-// components/layout/Sidebar.tsx
 'use client'
 import Image from 'next/image'
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
+import { Lock, LogOut } from 'lucide-react'
 import { TOOLS, type ToolConfig } from '@/types'
+import { createClient } from '@/lib/supabase/client'
+import { useEffect, useState } from 'react'
+import type { User } from '@supabase/supabase-js'
 
 export function Sidebar() {
   const pathname = usePathname()
+  const router = useRouter()
+  const [user, setUser] = useState<User | null>(null)
+
+  useEffect(() => {
+    const supabase = createClient()
+    supabase.auth.getUser().then(({ data }) => setUser(data.user))
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null)
+    })
+    return () => subscription.unsubscribe()
+  }, [])
+
+  const handleLogout = async () => {
+    const supabase = createClient()
+    await supabase.auth.signOut()
+    router.push('/')
+  }
 
   const textTools = TOOLS.filter((t) => t.group === 'text')
   const imageTools = TOOLS.filter((t) => t.group === 'image')
+  const aiTools = TOOLS.filter((t) => t.group === 'ai')
 
   return (
     <aside
@@ -39,25 +60,44 @@ export function Sidebar() {
 
       {/* Navigation */}
       <nav className="flex-1 overflow-y-auto py-3">
-        <ToolGroup label="テキストツール" tools={textTools} pathname={pathname} />
-        <ToolGroup label="画像ツール" tools={imageTools} pathname={pathname} />
+        <ToolGroup label="テキストツール" tools={textTools} pathname={pathname} user={user} />
+        <ToolGroup label="画像ツール" tools={imageTools} pathname={pathname} user={user} />
+        <ToolGroup label="AI ツール" tools={aiTools} pathname={pathname} user={user} />
       </nav>
 
-      {/* Footer */}
+      {/* Footer: user info or login link */}
       <div className="flex items-center gap-2 px-4 py-3 border-t" style={{ borderColor: 'var(--border)' }}>
-        <span
-          className="w-2 h-2 rounded-full flex-shrink-0"
-          style={{ background: 'linear-gradient(135deg, var(--accent), var(--accent-light))', boxShadow: '0 0 5px rgba(244,180,0,0.6)' }}
-        />
-        <span className="text-[9px] font-bold tracking-widest uppercase" style={{ color: 'var(--text-muted)' }}>
-          CLOUD READY
-        </span>
+        {user ? (
+          <>
+            <span className="flex-1 text-[10px] truncate" style={{ color: 'var(--text-muted)' }}>
+              {user.email}
+            </span>
+            <button onClick={handleLogout} title="ログアウト" className="p-1 rounded hover:bg-gray-100">
+              <LogOut size={13} style={{ color: 'var(--text-muted)' }} />
+            </button>
+          </>
+        ) : (
+          <Link href="/login" className="text-[10px] font-semibold" style={{ color: 'var(--text-muted)' }}>
+            ログイン
+          </Link>
+        )}
       </div>
     </aside>
   )
 }
 
-function ToolGroup({ label, tools, pathname }: { label: string; tools: ToolConfig[]; pathname: string }) {
+function ToolGroup({
+  label,
+  tools,
+  pathname,
+  user,
+}: {
+  label: string
+  tools: ToolConfig[]
+  pathname: string
+  user: User | null
+}) {
+  if (tools.length === 0) return null
   return (
     <div className="mb-2">
       <p className="px-4 py-1 text-[9px] font-bold tracking-widest uppercase" style={{ color: 'var(--text-muted)' }}>
@@ -65,10 +105,11 @@ function ToolGroup({ label, tools, pathname }: { label: string; tools: ToolConfi
       </p>
       {tools.map((tool) => {
         const isActive = pathname === `/tools/${tool.id}` || pathname === `/tools/${tool.id}/`
+        const isLocked = tool.requiresAuth && !user
         return (
           <Link
             key={tool.id}
-            href={`/tools/${tool.id}`}
+            href={isLocked ? `/login?redirectTo=/tools/${tool.id}` : `/tools/${tool.id}`}
             className={`flex items-center gap-2 mx-2 px-3 py-2 rounded-lg text-sm font-medium transition-all ${
               isActive
                 ? 'bg-gradient-to-r text-gray-900 shadow-sm'
@@ -81,14 +122,15 @@ function ToolGroup({ label, tools, pathname }: { label: string; tools: ToolConfi
                     boxShadow: 'var(--shadow-accent)',
                     color: 'var(--text-primary)',
                   }
-                : { color: 'var(--text-secondary)' }
+                : { color: isLocked ? 'var(--text-muted)' : 'var(--text-secondary)' }
             }
           >
             <span
               className="w-1.5 h-1.5 rounded-full flex-shrink-0"
               style={{ background: isActive ? 'rgba(34,34,34,0.4)' : 'var(--border)' }}
             />
-            {tool.label}
+            <span className="flex-1">{tool.label}</span>
+            {isLocked && <Lock size={11} style={{ color: 'var(--text-muted)' }} />}
           </Link>
         )
       })}
