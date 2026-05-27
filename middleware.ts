@@ -45,11 +45,18 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(loginUrl)
   }
 
+  if (!user.email) {
+    const deniedUrl = request.nextUrl.clone()
+    deniedUrl.pathname = '/access-denied'
+    return NextResponse.redirect(deniedUrl)
+  }
+
   const allowed = (process.env.ALLOWED_EMAILS ?? '')
     .split(',')
     .map((e) => e.trim().toLowerCase())
+    .filter(Boolean)
 
-  if (allowed.length > 0 && !allowed.includes((user.email ?? '').toLowerCase())) {
+  if (allowed.length > 0 && !allowed.includes(user.email.toLowerCase())) {
     const deniedUrl = request.nextUrl.clone()
     deniedUrl.pathname = '/access-denied'
     return NextResponse.redirect(deniedUrl)
