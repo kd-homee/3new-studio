@@ -1,5 +1,5 @@
 'use client'
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 
@@ -21,6 +21,12 @@ export function MinutesTool() {
   const [result, setResult] = useState<MinutesResult | null>(null)
   const [notionUrl, setNotionUrl] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [audioFile, setAudioFile] = useState<File | null>(null)
+  const [isRecording, setIsRecording] = useState(false)
+  const [isTranscribing, setIsTranscribing] = useState(false)
+  const [transcribeProgress, setTranscribeProgress] = useState<string | null>(null)
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null)
+  const audioChunksRef = useRef<Blob[]>([])
 
   const handleGenerate = async () => {
     setIsGenerating(true)
@@ -73,6 +79,60 @@ export function MinutesTool() {
     }
   }
 
+  const handleTranscribe = async () => {
+    if (!audioFile) return
+    setIsTranscribing(true)
+    setTranscribeProgress(null)
+    setError(null)
+    try {
+      const { splitAudioFile } = await import('@/lib/audioChunker')
+      const chunks = await splitAudioFile(audioFile)
+      const texts: string[] = []
+      for (let i = 0; i < chunks.length; i++) {
+        if (chunks.length > 1) setTranscribeProgress(`処理中... (${i + 1}/${chunks.length})`)
+        const formData = new FormData()
+        formData.append('audio', chunks[i], chunks[i].name)
+        const res = await fetch('/api/transcribe', { method: 'POST', body: formData })
+        if (!res.ok) throw new Error('API error')
+        const data = await res.json()
+        texts.push(data.text)
+      }
+      setTranscript(texts.join(' '))
+      setAudioFile(null)
+    } catch {
+      setError('文字起こしに失敗しました。もう一度お試しください。')
+    } finally {
+      setIsTranscribing(false)
+      setTranscribeProgress(null)
+    }
+  }
+
+  const handleRecordingToggle = async () => {
+    if (isRecording) {
+      mediaRecorderRef.current?.stop()
+      setIsRecording(false)
+      return
+    }
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+      const recorder = new MediaRecorder(stream)
+      audioChunksRef.current = []
+      recorder.ondataavailable = (e) => {
+        if (e.data.size > 0) audioChunksRef.current.push(e.data)
+      }
+      recorder.onstop = () => {
+        const blob = new Blob(audioChunksRef.current, { type: 'audio/webm' })
+        setAudioFile(new File([blob], `recording-${Date.now()}.webm`, { type: 'audio/webm' }))
+        stream.getTracks().forEach((t) => t.stop())
+      }
+      mediaRecorderRef.current = recorder
+      recorder.start()
+      setIsRecording(true)
+    } catch {
+      setError('マイクへのアクセスを許可してください。')
+    }
+  }
+
   return (
     <div className="flex flex-col h-full overflow-auto" style={{ background: 'var(--bg-main)' }}>
       <div className="max-w-3xl w-full mx-auto p-6 space-y-5">
@@ -104,6 +164,85 @@ export function MinutesTool() {
             className="px-4 py-2.5 rounded-xl border text-sm outline-none"
             style={{ borderColor: 'var(--border)', background: 'var(--bg-content)', color: 'var(--text-primary)' }}
           />
+        </div>
+
+        {/* Audio Input Section */}
+        <div className="space-y-2">
+          <label
+            className="flex flex-col items-center justify-center w-full min-h-28 rounded-xl border-2 border-dashed cursor-pointer"
+            style={{ borderColor: 'var(--border)', background: 'var(--bg-content)' }}
+            onDragOver={(e) => e.preventDefault()}
+            onDrop={(e) => {
+              e.preventDefault()
+              const file = e.dataTransfer.files[0]
+              if (file) setAudioFile(file)
+            }}
+          >
+            <input
+              data-testid="audio-file-input"
+              type="file"
+              accept=".m4a,.mp3,.mp4,.wav,.webm,audio/*"
+              className="hidden"
+              onChange={(e) => {
+                const file = e.target.files?.[0]
+                if (file) setAudioFile(file)
+              }}
+            />
+            <span className="text-2xl mb-1">🎵</span>
+            <span className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
+              音声ファイルをここにドロップ
+            </span>
+            <span className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>
+              または タップして選択 — m4a / mp3 / wav / webm（25MB超は自動分割）
+            </span>
+          </label>
+
+          <button
+            type="button"
+            onClick={handleRecordingToggle}
+            className="text-xs underline"
+            style={{ color: 'var(--text-muted)' }}
+          >
+            {isRecording ? '⏹ 録音を停止する' : 'その場で録音する 🎤'}
+          </button>
+          {isRecording && (
+            <p className="text-xs" style={{ color: 'var(--accent)' }}>
+              録音中... ※ 画面を切り替えると録音が止まります
+            </p>
+          )}
+
+          {audioFile && (
+            <div
+              className="flex items-center gap-2 px-3 py-2 rounded-lg"
+              style={{ background: 'var(--bg-content)', border: '1px solid var(--border)' }}
+            >
+              <span className="text-sm flex-1 truncate" style={{ color: 'var(--text-primary)' }}>
+                {audioFile.name}
+              </span>
+              <button
+                type="button"
+                onClick={() => setAudioFile(null)}
+                className="text-xs px-1 rounded"
+                style={{ color: 'var(--text-muted)' }}
+              >
+                ✕
+              </button>
+              <button
+                type="button"
+                onClick={handleTranscribe}
+                disabled={isTranscribing}
+                className="px-3 py-1.5 rounded-lg text-xs font-semibold disabled:opacity-50"
+                style={{
+                  backgroundImage: 'linear-gradient(135deg, var(--accent), var(--accent-light))',
+                  color: 'var(--text-primary)',
+                }}
+              >
+                {isTranscribing
+                  ? (transcribeProgress ?? '文字起こし中...')
+                  : '🔤 文字起こし開始'}
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Transcript input */}
