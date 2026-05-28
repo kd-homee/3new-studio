@@ -62,7 +62,7 @@ export async function POST(request: Request) {
   try {
     const jaResponse = await client.messages.create({
       model: claudeModel,
-      max_tokens: 2048,
+      max_tokens: 4096,
       system: SYSTEM_PROMPT,
       messages: [{ role: 'user', content: userContent }],
     })
@@ -74,7 +74,7 @@ export async function POST(request: Request) {
     if (includeEnglish) {
       const enResponse = await client.messages.create({
         model: claudeModel,
-        max_tokens: 2048,
+        max_tokens: 4096,
         system: TRANSLATION_PROMPT,
         messages: [{ role: 'user', content: japanese }],
       })
