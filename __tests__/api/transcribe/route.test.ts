@@ -32,6 +32,23 @@ describe('POST /api/transcribe', () => {
     expect(data.text).toBe('こんにちは、テストです。')
   })
 
+  it('languageパラメータが渡される', async () => {
+    const openai = require('openai').default
+    const createMock = openai.mock.results[0].value.audio.transcriptions.create
+    const blob = new Blob(['fake audio'], { type: 'audio/mp4' })
+    const formData = new FormData()
+    formData.append('audio', blob, 'test.m4a')
+    formData.append('language', 'en')
+
+    const request = new Request('http://localhost/api/transcribe', {
+      method: 'POST',
+      body: formData,
+    })
+
+    await POST(request)
+    expect(createMock).toHaveBeenCalledWith(expect.objectContaining({ language: 'en' }))
+  })
+
   it('audioフィールドがない場合は400を返す', async () => {
     const formData = new FormData()
     const request = new Request('http://localhost/api/transcribe', {

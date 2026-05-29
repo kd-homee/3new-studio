@@ -25,6 +25,7 @@ export function MinutesTool() {
   const [isRecording, setIsRecording] = useState(false)
   const [isTranscribing, setIsTranscribing] = useState(false)
   const [transcribeProgress, setTranscribeProgress] = useState<string | null>(null)
+  const [transcribeLang, setTranscribeLang] = useState<'ja' | 'en' | 'fr'>('ja')
   const mediaRecorderRef = useRef<MediaRecorder | null>(null)
   const audioChunksRef = useRef<Blob[]>([])
 
@@ -92,6 +93,7 @@ export function MinutesTool() {
         if (chunks.length > 1) setTranscribeProgress(`処理中... (${i + 1}/${chunks.length})`)
         const formData = new FormData()
         formData.append('audio', chunks[i], chunks[i].name)
+        formData.append('language', transcribeLang)
         const res = await fetch('/api/transcribe', { method: 'POST', body: formData })
         if (!res.ok) throw new Error('API error')
         const data = await res.json()
@@ -168,6 +170,28 @@ export function MinutesTool() {
 
         {/* Audio Input Section */}
         <div className="space-y-2">
+          {/* Language selector for transcription */}
+          <div className="flex items-center gap-1">
+            <span className="text-xs font-medium mr-1" style={{ color: 'var(--text-muted)' }}>文字起こし言語:</span>
+            {([['ja', '🇯🇵 日本語'], ['en', '🇺🇸 English'], ['fr', '🇫🇷 Français']] as const).map(([lang, label]) => (
+              <button
+                key={lang}
+                onClick={() => setTranscribeLang(lang)}
+                className="px-3 py-1.5 rounded-lg text-xs font-semibold transition-all"
+                style={
+                  transcribeLang === lang
+                    ? {
+                        backgroundImage: 'linear-gradient(135deg, var(--accent), var(--accent-light))',
+                        color: 'var(--text-primary)',
+                        boxShadow: 'var(--shadow-accent)',
+                      }
+                    : { background: 'var(--bg-content)', color: 'var(--text-secondary)', border: '1px solid var(--border)' }
+                }
+              >
+                {label}
+              </button>
+            ))}
+          </div>
           <label
             className="flex flex-col items-center justify-center w-full min-h-28 rounded-xl border-2 border-dashed cursor-pointer"
             style={{ borderColor: 'var(--border)', background: 'var(--bg-content)' }}
