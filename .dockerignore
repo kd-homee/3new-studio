@@ -2,7 +2,19 @@ node_modules
 .next
 out
 .git
-.env*.local
+.github
+.swc
+coverage
+*.tsbuildinfo
+.env
+.env.*
+!.env.example
 *.md
 .superpowers
+.claude
 __tests__
+docs
+deploy
+3New Studio
+studio-upload.zip
+extract.php

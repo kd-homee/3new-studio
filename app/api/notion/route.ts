@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/supabase/server'
+import { requireAllowedUser } from '@/lib/auth/guard'
 import { Client as NotionClient } from '@notionhq/client'
 import { NextResponse } from 'next/server'
 
@@ -67,14 +67,8 @@ function markdownToBlocks(markdown: string): any[] {
 }
 
 export async function POST(request: Request) {
-  const supabase = await createClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-
-  if (!user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  }
+  const auth = await requireAllowedUser()
+  if (auth.response) return auth.response
 
   const { title, content, date } = (await request.json()) as {
     title: string

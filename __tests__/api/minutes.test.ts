@@ -14,6 +14,7 @@ import Anthropic from '@anthropic-ai/sdk'
 
 const mockCreateClient = createClient as jest.MockedFunction<typeof createClient>
 const MockAnthropic = Anthropic as jest.MockedClass<typeof Anthropic>
+const ORIGINAL_ENV = process.env
 
 function makeRequest(body: object) {
   return new NextRequest('http://localhost/api/minutes', {
@@ -23,22 +24,56 @@ function makeRequest(body: object) {
   })
 }
 
+function mockUser(user: object | null) {
+  mockCreateClient.mockResolvedValue({
+    auth: { getUser: async () => ({ data: { user }, error: null }) },
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  } as any)
+}
+
+const ALLOWED_USER = { id: 'user-1', email: 'allowed@example.com' }
+
 describe('POST /api/minutes', () => {
-  beforeEach(() => jest.clearAllMocks())
+  beforeEach(() => {
+    jest.clearAllMocks()
+    process.env = {
+      ...ORIGINAL_ENV,
+      NEXT_PUBLIC_SUPABASE_URL: 'http://supabase.test',
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: 'anon-test',
+      ALLOWED_EMAILS: 'allowed@example.com',
+    }
+  })
+
+  afterEach(() => {
+    process.env = ORIGINAL_ENV
+  })
 
   it('未認証の場合は401を返す', async () => {
-    mockCreateClient.mockResolvedValue({
-      auth: { getUser: async () => ({ data: { user: null }, error: null }) },
-    } as any)
+    mockUser(null)
 
     const res = await POST(makeRequest({ transcript: 'test', model: 'haiku', includeEnglish: false, title: '' }))
     expect(res.status).toBe(401)
   })
 
+  it('許可リスト外のユーザーは403でAnthropicを呼ばない', async () => {
+    mockUser({ id: 'user-2', email: 'other@example.com' })
+
+    const res = await POST(makeRequest({ transcript: 'test', model: 'haiku', includeEnglish: false, title: '' }))
+    expect(res.status).toBe(403)
+    expect(MockAnthropic).not.toHaveBeenCalled()
+  })
+
+  it('ALLOWED_EMAILS未設定なら503（fail closed）', async () => {
+    delete process.env.ALLOWED_EMAILS
+    jest.spyOn(console, 'error').mockImplementation(() => {})
+    mockUser(ALLOWED_USER)
+
+    const res = await POST(makeRequest({ transcript: 'test', model: 'haiku', includeEnglish: false, title: '' }))
+    expect(res.status).toBe(503)
+  })
+
   it('Haiku モデルで議事録を生成して返す', async () => {
-    mockCreateClient.mockResolvedValue({
-      auth: { getUser: async () => ({ data: { user: { id: 'user-1' } }, error: null }) },
-    } as any)
+    mockUser(ALLOWED_USER)
 
     const mockCreate = jest.fn().mockResolvedValue({
       content: [{ type: 'text', text: '## 1. 会議の目的\n定例ミーティング' }],
@@ -57,9 +92,7 @@ describe('POST /api/minutes', () => {
   })
 
   it('Sonnet モデルを指定したときは sonnet-4-6 が使われる', async () => {
-    mockCreateClient.mockResolvedValue({
-      auth: { getUser: async () => ({ data: { user: { id: 'user-1' } }, error: null }) },
-    } as any)
+    mockUser(ALLOWED_USER)
 
     const mockCreate = jest.fn().mockResolvedValue({
       content: [{ type: 'text', text: '議事録' }],
@@ -71,9 +104,7 @@ describe('POST /api/minutes', () => {
   })
 
   it('includeEnglish=true のとき英訳も返す', async () => {
-    mockCreateClient.mockResolvedValue({
-      auth: { getUser: async () => ({ data: { user: { id: 'user-1' } }, error: null }) },
-    } as any)
+    mockUser(ALLOWED_USER)
 
     const mockCreate = jest.fn()
       .mockResolvedValueOnce({ content: [{ type: 'text', text: '日本語議事録' }] })
