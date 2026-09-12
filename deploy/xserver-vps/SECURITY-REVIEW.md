@@ -31,9 +31,26 @@ is no user. `/api/transcribe` has **no in-route check**; it is protected only by
    silently removes protection (Next.js docs explicitly recommend verifying auth inside handlers).
 3. Repo is **public**, so route names and the proxy logic are known to anyone.
 
-**Verdict.** Adequate for Phase 1 staging *with* the compose guard, but not defense-in-depth.
+**Verdict.** Proxy alone was not defense-in-depth. **Resolved** by the approved hardening below.
 
-### Proposed (NOT implemented — separate approval requested)
+### Implemented (approved 2026-09-13): `lib/auth/guard.ts` → `requireAllowedUser()`
+
+Called first in `/api/transcribe` (before the upload body is read), `/api/minutes`, `/api/notion`.
+Same Supabase Auth session; no provider change.
+
+| Condition | Response |
+|---|---|
+| Supabase public env missing, or `ALLOWED_EMAILS` empty | 503 (no Supabase call) |
+| `createClient()` / `getUser()` throws, network error, Supabase 5xx | 503 |
+| No session / invalid token | 401 |
+| User without email, or email not in allowlist (case-insensitive) | 403 |
+| Allowed user | handler runs |
+
+Unlike `proxy.ts`, an empty allowlist **denies**. `proxy.ts` itself is unchanged (page routes still treat an
+empty allowlist as "any signed-in user"); the compose `${ALLOWED_EMAILS:?}` guard prevents that state on the VPS.
+Regression tests: `__tests__/lib/auth/guard.test.ts` plus 401/403/503 cases in each API route test.
+
+Original proposal sketch, kept for reference:
 
 Small shared helper, same Supabase Auth, no architecture change:
 
@@ -69,11 +86,17 @@ exchange and then redirected the browser to an invalid host. Fixed by deriving t
 (`/auth/callback/` → `https://studio.3new.eu/login?error=auth_failed`) and by `__tests__/auth/callback.test.ts`.
 Host-header spoofing only affects the spoofing client's own redirect; Nginx overwrites both headers.
 
-## F3. `next` parameter in `/auth/callback` — low (pre-existing, not changed)
+## F3. Post-login redirect (`next` / `redirectTo`) — low (fixed in this branch)
 
-The redirect target is `${origin}${next}` with `next` taken from the query string unvalidated. Values such as
-`@evil.example` produce `https://studio.3new.eu@evil.example`, i.e. an open redirect after a successful login.
-Proposed together with F1: accept `next` only if it starts with `/` and not `//`.
+Previously `/auth/callback` redirected to `${origin}${next}` with `next` unvalidated (`@evil.example` →
+`https://studio.3new.eu@evil.example`), and the login page used `redirectTo` directly in
+`window.location.href` and unencoded in the OAuth callback URL — both open redirects after login.
+
+Now both go through `lib/auth/safeRedirect.ts` → `sanitizeNextPath()`: only same-origin relative paths
+(path + query + hash) are kept; absolute URLs, `//host`, `/\host`, `@host`, `javascript:`, control characters,
+normalisations that become `//host`, and values > 2048 chars fall back to `/tools/minutes`. The login page
+URL-encodes the value passed to the OAuth callback. Tests: `__tests__/lib/auth/safeRedirect.test.ts`,
+`__tests__/auth/callback.test.ts`.
 
 ## F4. Build-time secrets
 

@@ -58,6 +58,8 @@ Prerequisites:
 ## 7. API protection (from a logged-out terminal)
 - [ ] `curl -X POST -F audio=@sample.m4a https://<staging>/api/transcribe/` → 307 to login, **no OpenAI call** (check OpenAI usage/logs)
 - [ ] Same for `/api/minutes/` and `/api/notion/`
+- [ ] Logged in as a **non-allowed** account (if it can reach the API, e.g. via DevTools `fetch`): all three `/api/*` → 403, no OpenAI/Anthropic/Notion call
+- [ ] Post-login redirect: `/login/?redirectTo=//evil.example` and `/auth/callback/?next=https://evil.example/` never leave the staging host (land on `/tools/minutes`)
 - [ ] With header `x-middleware-subrequest: proxy:proxy:proxy:proxy:proxy` → still 307
 - [ ] Upload >25 MB → 413 from Nginx
 

@@ -2,11 +2,12 @@
 import { Suspense, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
+import { sanitizeNextPath } from '@/lib/auth/safeRedirect'
 import Image from 'next/image'
 
 function LoginForm() {
   const searchParams = useSearchParams()
-  const redirectTo = searchParams.get('redirectTo') ?? '/tools/minutes'
+  const redirectTo = sanitizeNextPath(searchParams.get('redirectTo'))
   const authError = searchParams.get('error')
 
   const [email, setEmail] = useState('')
@@ -35,7 +36,7 @@ function LoginForm() {
     await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        redirectTo: `${window.location.origin}/auth/callback?next=${redirectTo}`,
+        redirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(redirectTo)}`,
       },
     })
   }

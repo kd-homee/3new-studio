@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/supabase/server'
+import { requireAllowedUser } from '@/lib/auth/guard'
 import Anthropic from '@anthropic-ai/sdk'
 import { NextResponse } from 'next/server'
 
@@ -32,14 +32,8 @@ const SYSTEM_PROMPT = `あなたはプロの議事録作成者です。提供さ
 const TRANSLATION_PROMPT = `You are a professional translator. Translate the following Japanese meeting minutes to English. Maintain the exact same 5-section structure and format. Keep the checkbox list format for escalation items and the table format for action items.`
 
 export async function POST(request: Request) {
-  const supabase = await createClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-
-  if (!user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  }
+  const auth = await requireAllowedUser()
+  if (auth.response) return auth.response
 
   const { transcript, model, includeEnglish, title } = (await request.json()) as {
     transcript: string

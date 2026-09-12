@@ -1,5 +1,6 @@
 import OpenAI from 'openai'
 import { NextRequest, NextResponse } from 'next/server'
+import { requireAllowedUser } from '@/lib/auth/guard'
 
 // Created on first request, not at import: `next build` loads this module without runtime secrets.
 let openai: OpenAI | null = null
@@ -10,6 +11,10 @@ function getOpenAI(): OpenAI {
 }
 
 export async function POST(request: NextRequest) {
+  // Authorize before reading the (up to ~19 MB) upload body.
+  const auth = await requireAllowedUser()
+  if (auth.response) return auth.response
+
   const formData = await request.formData()
   const audio = formData.get('audio')
   const language = (formData.get('language') as string | null) ?? 'ja'

@@ -14,6 +14,7 @@ import { Client as NotionClient } from '@notionhq/client'
 
 const mockCreateClient = createClient as jest.MockedFunction<typeof createClient>
 const MockNotionClient = NotionClient as jest.MockedClass<typeof NotionClient>
+const ORIGINAL_ENV = process.env
 
 function makeRequest(body: object) {
   return new NextRequest('http://localhost/api/notion', {
@@ -23,22 +24,45 @@ function makeRequest(body: object) {
   })
 }
 
+function mockUser(user: object | null) {
+  mockCreateClient.mockResolvedValue({
+    auth: { getUser: async () => ({ data: { user }, error: null }) },
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  } as any)
+}
+
 describe('POST /api/notion', () => {
-  beforeEach(() => jest.clearAllMocks())
+  beforeEach(() => {
+    jest.clearAllMocks()
+    process.env = {
+      ...ORIGINAL_ENV,
+      NEXT_PUBLIC_SUPABASE_URL: 'http://supabase.test',
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: 'anon-test',
+      ALLOWED_EMAILS: 'allowed@example.com',
+    }
+  })
+
+  afterEach(() => {
+    process.env = ORIGINAL_ENV
+  })
 
   it('未認証の場合は401を返す', async () => {
-    mockCreateClient.mockResolvedValue({
-      auth: { getUser: async () => ({ data: { user: null }, error: null }) },
-    } as any)
+    mockUser(null)
 
     const res = await POST(makeRequest({ title: 'test', content: 'content', date: '2026-05-27' }))
     expect(res.status).toBe(401)
   })
 
+  it('許可リスト外のユーザーは403でNotionに書き込まない', async () => {
+    mockUser({ id: 'user-2', email: 'other@example.com' })
+
+    const res = await POST(makeRequest({ title: 'test', content: 'content', date: '2026-05-27' }))
+    expect(res.status).toBe(403)
+    expect(MockNotionClient).not.toHaveBeenCalled()
+  })
+
   it('Notionページを作成してURLを返す', async () => {
-    mockCreateClient.mockResolvedValue({
-      auth: { getUser: async () => ({ data: { user: { id: 'user-1' } }, error: null }) },
-    } as any)
+    mockUser({ id: 'user-1', email: 'allowed@example.com' })
 
     const mockPagesCreate = jest.fn().mockResolvedValue({
       url: 'https://notion.so/test-page-123',

@@ -42,6 +42,34 @@ describe('GET /auth/callback', () => {
     expect(res.headers.get('location')).toBe('https://studio.3new.eu/login?error=auth_failed')
   })
 
+  it.each([
+    ['//evil.example'],
+    ['@evil.example'],
+    ['https://evil.example/'],
+    ['/\\evil.example'],
+    ['/.//evil.example'],
+  ])('危険なnext %p は同一オリジンの既定パスにリダイレクトする', async (next) => {
+    mockExchange(null)
+    const req = new NextRequest(
+      `http://0.0.0.0:3000/auth/callback/?code=abc&next=${encodeURIComponent(next)}`,
+      { headers: { host: 'studio.3new.eu', 'x-forwarded-proto': 'https' } }
+    )
+
+    const res = await GET(req)
+    expect(res.headers.get('location')).toBe('https://studio.3new.eu/tools/minutes')
+  })
+
+  it('クエリ付きの安全なnextは保持する', async () => {
+    mockExchange(null)
+    const req = new NextRequest(
+      `http://0.0.0.0:3000/auth/callback/?code=abc&next=${encodeURIComponent('/tools/json/?tab=tree')}`,
+      { headers: { host: 'studio.3new.eu', 'x-forwarded-proto': 'https' } }
+    )
+
+    const res = await GET(req)
+    expect(res.headers.get('location')).toBe('https://studio.3new.eu/tools/json/?tab=tree')
+  })
+
   it('転送ヘッダーがない場合はHostヘッダーを使う（ローカル開発）', async () => {
     const req = new NextRequest('http://localhost:3000/auth/callback/', {
       headers: { host: 'localhost:3000' },

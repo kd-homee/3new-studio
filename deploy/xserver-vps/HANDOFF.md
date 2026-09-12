@@ -45,7 +45,12 @@ no shared credentials with Mayumi Chat or any other app.
 | `nginx.conf` | Deleted (obsolete static-export config) |
 | `app/api/transcribe/route.ts` | OpenAI client created lazily — `next build` no longer requires `OPENAI_API_KEY` (container build + likely CI failure cause) |
 | `app/auth/callback/route.ts` | Redirect origin from forwarded headers — fixes redirect to `https://0.0.0.0:3000` behind Nginx (Google login would break on VPS) |
-| `__tests__/auth/callback.test.ts` | New: origin behind proxy, failure path, local dev |
+| `__tests__/auth/callback.test.ts` | New: origin behind proxy, failure path, local dev, unsafe `next` values |
+| `lib/auth/guard.ts` | **Security hardening (approved):** `requireAllowedUser()` — valid Supabase user AND `ALLOWED_EMAILS`; 401/403; 503 fail-closed on missing config or Supabase failure |
+| `app/api/transcribe`, `app/api/minutes`, `app/api/notion` routes | Call the guard first (transcribe: before reading the upload body) |
+| `lib/auth/safeRedirect.ts` | `sanitizeNextPath()` — same-origin relative paths only |
+| `app/auth/callback/route.ts`, `app/(auth)/login/page.tsx` | Sanitize `next` / `redirectTo`; URL-encode it in the OAuth callback URL |
+| `__tests__/lib/auth/*`, `__tests__/api/*` | Guard + redirect regression tests; API routes test 401/403/503 |
 | `.github/workflows/ci.yml` | Node 22; Docker job is build-only (stale `ghcr.io/3new-srl` push removed) |
 | `README.md` | Removed stale static-export / `3new-srl` VPS instructions; points here |
 | `deploy/xserver-vps/nginx/studio.3new.eu.conf.template` | Vhost template with placeholders |
@@ -54,7 +59,10 @@ no shared credentials with Mayumi Chat or any other app.
 
 ## 4. Verification performed locally (2026-09-13, Windows + Docker Desktop)
 
-- `npm test`: 15 suites / 53 tests passed (baseline main: 14 / 50).
+- After security hardening (commit following `4abf590`): `npm test` 17 suites / 100 tests passed;
+  `tsc` only the 4 pre-existing test-file errors; `npm run build` OK; Docker smoke: healthy, all protected
+  routes 307, unsafe `next` values stay on `https://studio.3new.eu`, no secrets in build log.
+- Initial preparation (`4abf590`): `npm test`: 15 suites / 53 tests passed (baseline main: 14 / 50).
 - `npx tsc --noEmit`: 4 errors, all pre-existing on `main` in `__tests__/api/notion.test.ts` and
   `__tests__/api/transcribe/route.test.ts` (test typing only; `next build` type check passes).
 - `npm run build`: success, `.next/standalone/server.js` produced.
@@ -80,7 +88,7 @@ no shared credentials with Mayumi Chat or any other app.
 7. VPS public IPv4 (and IPv6, if any) for the future A/AAAA record.
 
 Also needs approval (not VPS-bound):
-- Staging hostname DNS record in XServer DNS (DNS change).
+- Staging hostname (proposed: `staging.studio.3new.eu`) DNS record in XServer DNS (DNS change; not created yet).
 - Adding the staging URL to Supabase Auth Redirect URLs (Supabase config change) for Google login on staging.
 - Source of `.env` values: copy from Vercel project env (Production) or issue new 3NEW-Studio-specific keys.
 - **TLS for cutover:** `studio.3new.eu` already sends HSTS, so the VPS must present a valid certificate the
