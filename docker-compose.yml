@@ -1,7 +1,35 @@
-version: '3.8'
+# 3NEW Studio — app container only (reverse proxy/TLS are handled by the VPS Nginx vhost).
+# Requires a project-local .env (see .env.example). Nothing here is shared with other apps.
+name: 3new-studio
+
 services:
   studio:
-    build: .
+    build:
+      context: .
+      args:
+        NEXT_PUBLIC_SUPABASE_URL: ${NEXT_PUBLIC_SUPABASE_URL:?NEXT_PUBLIC_SUPABASE_URL must be set in .env}
+        NEXT_PUBLIC_SUPABASE_ANON_KEY: ${NEXT_PUBLIC_SUPABASE_ANON_KEY:?NEXT_PUBLIC_SUPABASE_ANON_KEY must be set in .env}
+    image: 3new-studio:local
+    container_name: 3new-studio
+    env_file: .env
+    environment:
+      NODE_ENV: production
+      # Fail closed: an empty allowlist would admit every signed-in Supabase user (see proxy.ts).
+      ALLOWED_EMAILS: ${ALLOWED_EMAILS:?ALLOWED_EMAILS must be set in .env}
     ports:
-      - "3000:80"
+      # Bound to localhost only; Nginx is the sole public entry point.
+      - "127.0.0.1:${STUDIO_HOST_PORT:?STUDIO_HOST_PORT must be set in .env}:3000"
     restart: unless-stopped
+    init: true
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
